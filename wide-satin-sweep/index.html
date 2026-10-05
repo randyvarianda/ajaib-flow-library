@@ -1,0 +1,41 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Wide Satin Sweep · motion study</title><style>
+*{box-sizing:border-box}body{margin:0;background:#071327;color:#eff5ff;font:15px system-ui,sans-serif}header{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:28px 5vw}h1{font-size:18px;font-weight:550;margin:0}p{color:#9aafcc;margin:6px 0 0;font-size:13px}.stage{width:min(1200px,100%);margin:0 auto;aspect-ratio:1672/941;display:grid;place-items:center}canvas{width:100%;height:100%;display:block}footer{display:flex;align-items:center;justify-content:center;gap:24px;flex-wrap:wrap;padding:20px}button,select{background:#142642;border:1px solid #385071;border-radius:8px;color:inherit;padding:10px 16px;font:inherit}label{display:flex;align-items:center;gap:12px}input{accent-color:#6397ff;width:140px}button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid #98bbff;outline-offset:4px}@media(max-width:600px){header{padding:24px}footer{gap:16px}}
+</style><header><div><h1>Wide Satin Sweep</h1><p>Yield USD · broad satin curve · slow traveling reflection</p></div><button id="pause">Pause</button></header><main class="stage"><canvas id="ribbon" aria-label="Wide blue satin sweep with a slow moving reflection"></canvas></main><footer><label>Position X <input id="positionX" aria-label="Ribbon horizontal position" type="range" min="-100" max="100" step="1" value="0"><output id="positionXValue">0%</output></label><label>Position Y <input id="positionY" aria-label="Ribbon vertical position" type="range" min="-100" max="100" step="1" value="0"><output id="positionYValue">0%</output></label><label>Rotation <input id="rotation" aria-label="Ribbon rotation" type="range" min="-180" max="180" step="1" value="0"><output id="rotationValue">0°</output></label><label>Scale <input id="scale" aria-label="Ribbon scale" type="range" min="10" max="300" step="1" value="100"><output id="scaleValue">100%</output></label><button id="resetTransform">Reset transform</button><label><input id="mirror" type="checkbox" style="width:auto">Mirror horizontally</label><label><input id="reverse" type="checkbox" style="width:auto">Reverse flow</label><label>Flow <input id="strength" aria-label="Flow intensity" type="range" min="0" max="1.8" step="0.05" value="1"></label><label>Background <select id="backdrop"><option value="solid">Solid</option><option value="gradient">Gradient</option><option value="transparent">Transparent</option></select></label><label>Color <input id="color1" aria-label="Background hex" type="text" value="#071327" pattern="#[0-9a-fA-F]{6}" style="width:95px"></label><label>Gradient end <input id="color2" aria-label="Gradient end hex" type="text" value="#184CD0" pattern="#[0-9a-fA-F]{6}" style="width:95px"></label><span id="status" role="status"></span></footer><script src="../flow-library/shared/portrait.js?v=back-editor2"></script><script>
+const canvas=document.querySelector('canvas'), gl=canvas.getContext('webgl',{alpha:true,premultipliedAlpha:false,antialias:true});
+if(!gl)throw Error('WebGL is required for this preview');
+const vs=`attribute vec2 position;varying vec2 uv;uniform vec2 offset;uniform float angle;uniform float aspect;uniform float flip;uniform float zoom;
+void main(){uv=position;vec2 p=(position-0.5)*zoom;p.x*=flip;p.x*=aspect;float cs=cos(angle),sn=sin(angle);p=vec2(cs*p.x-sn*p.y,sn*p.x+cs*p.y);p.x/=aspect;p+=offset;gl_Position=vec4(p.x*2.0,-p.y*2.0,0.0,1.0);}`;
+const fs=`precision highp float;varying vec2 uv;uniform float phase;uniform float strength;
+void main(){
+float x=uv.x;float center=.73+.045*sin(x*4.2)-.20*x*x;
+float halfwidth=.073+.024*sin(x*3.14159);
+float v=(uv.y-center)/halfwidth;
+float mask=1.-smoothstep(.975,1.,abs(v));
+float roll=pow(max(0.,1.-v*v),.6);
+float reflection=exp(-pow((v+.47)/.20,2.));
+float edge=exp(-pow((v+.90)/.035,2.));
+float pulse=pow(.5+.5*cos(x*6.283185-phase+v*.8),6.);
+float fibers=sin(v*370.+x*16.)*.008;
+vec3 blue=vec3(.022,.12,.48)+vec3(.03,.16,.32)*roll;
+blue+=vec3(.12,.25,.35)*reflection+vec3(.10,.30,.4)*edge;
+blue+=strength*pulse*(vec3(.18,.31,.36)*reflection+vec3(.03,.09,.16)*roll);
+blue+=fibers*roll;
+gl_FragColor=vec4(blue,mask);
+}`;
+function shader(type,source){const s=gl.createShader(type);gl.shaderSource(s,source);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(s));return s}
+const program=gl.createProgram();gl.attachShader(program,shader(gl.VERTEX_SHADER,vs));gl.attachShader(program,shader(gl.FRAGMENT_SHADER,fs));gl.linkProgram(program);if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw Error(gl.getProgramInfoLog(program));gl.useProgram(program);
+const mesh=[];const nx=200,ny=24;for(let j=0;j<ny;j++)for(let i=0;i<nx;i++){const x=i/nx,y=j/ny,a=(i+1)/nx,b=(j+1)/ny;mesh.push(x,y,a,y,x,b,x,b,a,y,a,b)}
+gl.bindBuffer(gl.ARRAY_BUFFER,gl.createBuffer());gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(mesh),gl.STATIC_DRAW);const pos=gl.getAttribLocation(program,'position');gl.enableVertexAttribArray(pos);gl.vertexAttribPointer(pos,2,gl.FLOAT,false,0,0);
+const phase=gl.getUniformLocation(program,'phase'),strength=gl.getUniformLocation(program,'strength');gl.clearColor(0,0,0,0);
+let playing=!matchMedia('(prefers-reduced-motion: reduce)').matches,time=0,last=0,ready=false;const pause=document.querySelector('#pause');pause.textContent=playing?'Pause':'Play';pause.onclick=()=>{playing=!playing;pause.textContent=playing?'Pause':'Play'};
+function background(){const mode=document.querySelector('#backdrop').value,a=document.querySelector('#color1').value,b=document.querySelector('#color2').value;if(!/^#[0-9a-f]{6}$/i.test(a)||!/^#[0-9a-f]{6}$/i.test(b))return;document.querySelector('.stage').style.background=mode==='gradient'?'linear-gradient(to bottom,'+a+','+b+')':mode==='transparent'?'repeating-conic-gradient(#243147 0% 25%,#182337 0% 50%) 0/24px 24px':a}
+for(const id of ['backdrop','color1','color2'])document.querySelector('#'+id).oninput=background;
+for(const id of ['positionX','positionY','rotation','scale'])document.getElementById(id).oninput=()=>{document.getElementById(id+'Value').textContent=document.getElementById(id).value+(id==='rotation'?'°':'%')};
+document.getElementById('resetTransform').onclick=()=>{for(const id of ['positionX','positionY','rotation','scale']){document.getElementById(id).value=id==='scale'?100:0;document.getElementById(id).dispatchEvent(new Event('input'))}};
+const zoomLocation=gl.getUniformLocation(program,'zoom');
+const offsetLocation=gl.getUniformLocation(program,'offset'),angleLocation=gl.getUniformLocation(program,'angle'),aspectLocation=gl.getUniformLocation(program,'aspect'),flipLocation=gl.getUniformLocation(program,'flip');
+let exporting=false;
+background();
+ready=true;
+function render(now){if(last&&playing&&!document.hidden)time+=Math.min((now-last)/1000,.05);last=now;const dpr=Math.min(devicePixelRatio,2),w=Math.round(canvas.clientWidth*dpr),h=Math.round(canvas.clientHeight*dpr);if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;gl.viewport(0,0,w,h)}if(ready){gl.clear(gl.COLOR_BUFFER_BIT);gl.uniform1f(zoomLocation,+document.getElementById("scale").value/100);gl.uniform2f(offsetLocation,+document.getElementById('positionX').value/100,+document.getElementById('positionY').value/100);gl.uniform1f(angleLocation,+document.getElementById('rotation').value*Math.PI/180);gl.uniform1f(aspectLocation,w/h);gl.uniform1f(flipLocation,document.getElementById('mirror').checked?-1:1);gl.uniform1f(phase,(document.querySelector('#reverse').checked?-1:1)*(time%10)/10*Math.PI*2);gl.uniform1f(strength,+document.querySelector('#strength').value);gl.drawArrays(gl.TRIANGLES,0,mesh.length/2)}requestAnimationFrame(render)}requestAnimationFrame(render);
+</script></html>
