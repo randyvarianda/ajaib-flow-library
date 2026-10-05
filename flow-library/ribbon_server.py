@@ -26,7 +26,7 @@ class Handler(SimpleHTTPRequestHandler):
    strength=max(0,min(1.8,float(settings['strength'])));a=color(settings['color1']);b=color(settings['color2']);mode=settings['background'];assert mode in ['solid','gradient','transparent']
    bg=np.broadcast_to(a,(h,w,3)) if mode!='gradient' else np.broadcast_to(a[None,None,:]*(1-y[:,:,None])+b[None,None,:]*y[:,:,None],(h,w,3))
    dx=max(-100,min(100,float(settings.get('positionX',0))))/100*w;dy=max(-100,min(100,float(settings.get('positionY',0))))/100*h
-   angle=math.radians(max(-180,min(180,float(settings.get('rotation',0)))));cs=math.cos(angle);sn=math.sin(angle)
+   angle=math.radians(max(-180,min(180,float(settings.get('rotation',0)))));zoom=max(.1,min(3,float(settings.get("scale",100))/100));cs=math.cos(angle)/zoom;sn=math.sin(angle)/zoom
    affine=(cs,sn,w/2-cs*(w/2+dx)-sn*(h/2+dy),-sn,cs,h/2+sn*(w/2+dx)-cs*(h/2+dy))
    import tempfile
    with tempfile.TemporaryDirectory(dir=root/'work') as tmp:
@@ -39,7 +39,7 @@ class Handler(SimpleHTTPRequestHandler):
      rgb=np.clip(c*(1+strength*.22*broad[:,:,None])+strength*interior*(np.array([.06,.38,.48])*sheen[:,:,None]+np.array([0,.05,.08])*(silk*sheen)[:,:,None]),0,1)*255
      aa=alpha
      if settings['mirror']:rgb=rgb[:,::-1];aa=alpha[:,::-1]
-     if dx or dy or angle:
+     if dx or dy or angle or zoom!=1:
       layer=np.dstack((np.uint8(rgb+.5),aa));transformed=np.array(Image.fromarray(layer,'RGBA').transform((w,h),Image.Transform.AFFINE,affine,resample=Image.Resampling.BICUBIC))
       rgb=transformed[:,:,:3].astype(np.float32);aa=transformed[:,:,3]
      if mode!='transparent' or fmt=='mp4':

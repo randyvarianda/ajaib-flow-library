@@ -41,6 +41,16 @@
     $('portrait-format').onchange=setMode;
     for(const id of ['portrait-x','portrait-y'])$(id).oninput=()=>$(id).nextElementSibling.textContent=value(id)+'%';
     if(initialAspect==='portrait')$('portrait-format').value='portrait';setMode();
+    const numericStyle=document.createElement('style');numericStyle.textContent='input.slider-number{width:76px!important;padding:7px!important;border:1px solid #506a8e;border-radius:6px;background:#172b49;color:#edf5ff;font:inherit}';document.head.append(numericStyle);
+    for(const slider of document.querySelectorAll('input[type=range]')){
+      const field=document.createElement('input');field.type='number';field.className='slider-number';field.min=slider.min;field.max=slider.max;field.step=slider.step||'1';field.value=slider.value;
+      field.setAttribute('aria-label',(slider.getAttribute('aria-label')||slider.id)+' value');
+      const output=slider.nextElementSibling;
+      if(output?.tagName==='OUTPUT'){output.hidden=true;output.after(field)}else slider.after(field);
+      slider.addEventListener('input',()=>field.value=slider.value);
+      field.addEventListener('input',()=>{if(field.value!==''&&field.validity.valid){slider.value=field.value;slider.dispatchEvent(new Event('input',{bubbles:true}))}});
+      field.addEventListener('change',()=>{if(field.value!==''&&Number.isFinite(field.valueAsNumber)){slider.value=Math.max(Number(slider.min),Math.min(Number(slider.max),field.valueAsNumber));slider.dispatchEvent(new Event('input',{bubbles:true}))}field.value=slider.value});
+    }
     $('portrait-export').onclick=async()=>{
       if(busy)return;
       const status=$('portrait-status');
