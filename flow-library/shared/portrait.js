@@ -5,6 +5,12 @@
   const raf = window.requestAnimationFrame.bind(window);
   window.requestAnimationFrame = callback => raf(now => { callback(now); paint(); });
   window.addEventListener('DOMContentLoaded', () => {
+    if(new URLSearchParams(location.search).get('preview')==='1'){
+      const style=document.createElement('style');
+      style.textContent='html,body{width:100%;height:100%;margin:0!important;overflow:hidden!important}body> :not(main):not(script):not(style){display:none!important}main,main.stage{width:100%!important;max-width:none!important;height:100%!important;aspect-ratio:auto!important;margin:0!important;padding:0!important;border:0!important}main canvas{display:block!important;width:100%!important;height:100%!important;margin:0!important}';
+      document.head.append(style);
+      return;
+    }
     if(window.self===window.top){const back=document.createElement('a');back.textContent='← Back to library';back.href=new URL('../index.html',document.querySelector('script[src*="shared/portrait.js"]').src).href;back.style.cssText='display:inline-block;margin:16px 4vw 0;color:#bddcff;font:14px system-ui;text-decoration:none;padding:9px 12px;border:1px solid #456082;border-radius:7px';document.body.prepend(back);}
     const source = document.querySelector('canvas');
     if (!source) return;
