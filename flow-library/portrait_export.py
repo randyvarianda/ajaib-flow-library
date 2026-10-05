@@ -23,9 +23,14 @@ def portrait_post(handler):
         length = int(handler.headers.get('Content-Length', 0))
         fps = int(handler.headers.get('X-Frame-Rate', '30'))
         aspect = handler.headers.get('X-Aspect-Ratio', '9x16')
-        if aspect not in ('9x16', '2x1'):
+        if aspect not in ('9x16', '2x1', 'custom'):
             raise ValueError('Invalid aspect ratio')
         width, height = (2160, 1080) if aspect == '2x1' else (1080, 1920)
+        if aspect == 'custom':
+            width = int(handler.headers.get('X-Export-Width', 1920))
+            height = int(handler.headers.get('X-Export-Height', 1080))
+            if any(n < 64 or n > 3840 or n % 2 for n in (width, height)):
+                raise ValueError('Dimensions must be even numbers from 64 to 3840')
         if not 0 < length <= 100 * 1024 * 1024 or fps not in (30, 60):
             handler.send_error(400, 'Invalid recording size or frame rate')
             return True

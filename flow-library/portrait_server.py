@@ -22,7 +22,7 @@ class Handler(SimpleHTTPRequestHandler):
             return
         self.send_response(204)
         self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type, X-Frame-Rate, X-Aspect-Ratio')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type, X-Frame-Rate, X-Aspect-Ratio, X-Export-Width, X-Export-Height')
         self.end_headers()
 
     def do_GET(self):
