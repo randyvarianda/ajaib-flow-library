@@ -22,6 +22,10 @@ def portrait_post(handler):
     try:
         length = int(handler.headers.get('Content-Length', 0))
         fps = int(handler.headers.get('X-Frame-Rate', '30'))
+        aspect = handler.headers.get('X-Aspect-Ratio', '9x16')
+        if aspect not in ('9x16', '2x1'):
+            raise ValueError('Invalid aspect ratio')
+        width, height = (2160, 1080) if aspect == '2x1' else (1080, 1920)
         if not 0 < length <= 100 * 1024 * 1024 or fps not in (30, 60):
             handler.send_error(400, 'Invalid recording size or frame rate')
             return True
@@ -32,7 +36,7 @@ def portrait_post(handler):
             result = subprocess.run([
                 imageio_ffmpeg.get_ffmpeg_exe(), '-hide_banner', '-loglevel', 'error',
                 '-y', '-i', str(source), '-t', '15', '-an',
-                '-vf', f'scale=1080:1920:flags=lanczos,setsar=1,fps={fps}',
+                '-vf', f'scale={width}:{height}:flags=lanczos,setsar=1,fps={fps}',
                 '-c:v', 'libx264', '-preset', 'medium', '-crf', '16',
                 '-pix_fmt', 'yuv420p', '-movflags', '+faststart', str(output)
             ], capture_output=True, timeout=180)
@@ -42,7 +46,7 @@ def portrait_post(handler):
         handler.send_response(200)
         handler.send_header('Content-Type', 'video/mp4')
         handler.send_header('Content-Length', str(len(data)))
-        handler.send_header('Content-Disposition', 'attachment; filename="flow-9x16.mp4"')
+        handler.send_header('Content-Disposition', f'attachment; filename="flow-{aspect}.mp4"')
         handler.end_headers()
         handler.wfile.write(data)
     except (ValueError, subprocess.TimeoutExpired, OSError):
