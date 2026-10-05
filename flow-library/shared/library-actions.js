@@ -1,0 +1,13 @@
+(() => {
+ const key='ajaib-flow-library-deleted-v1';
+ let deleted=[];try{const saved=JSON.parse(localStorage.getItem(key)||'[]');if(Array.isArray(saved))deleted=saved.filter(x=>typeof x==='string')}catch{}
+ const grid=document.querySelector('.grid'),cards=[...grid.querySelectorAll('article')];
+ const section=document.createElement('section');section.style.cssText='margin-top:32px';section.innerHTML='<h2>Recently deleted</h2><p>Deleted assets are hidden in this browser only. Restore them at any time.</p><div class="deleted-list"></div>';
+ grid.after(section);
+ const status=document.createElement('p');status.setAttribute('role','status');grid.before(status);
+ const style=document.createElement('style');style.textContent='.asset-delete,.asset-restore{font:inherit;color:#b8d3ff;background:transparent;border:1px solid #3a5275;border-radius:7px;padding:9px 13px;cursor:pointer}.asset-delete:hover,.asset-restore:hover{background:#233b60}.asset-delete:focus-visible,.asset-restore:focus-visible{outline:2px solid white;outline-offset:3px}.deleted-list>div{display:flex;gap:18px;align-items:center;margin:12px 0}';document.head.append(style);
+ const id=card=>new URL(card.querySelector('a.primary').href).pathname.split('/').slice(-2).join('/')+new URL(card.querySelector('a.primary').href).search;
+ function save(){try{localStorage.setItem(key,JSON.stringify(deleted));return true}catch{status.textContent='Browser storage is unavailable. No assets were deleted.';return false}}
+ function render(){const list=section.querySelector('.deleted-list');list.replaceChildren();let count=0;for(const card of cards){const hidden=deleted.includes(id(card));card.hidden=hidden;if(!hidden)continue;count++;const row=document.createElement('div'),name=document.createElement('span'),restore=document.createElement('button');name.textContent=card.querySelector('h2').textContent;restore.textContent='Restore';restore.className='asset-restore';restore.onclick=()=>{const previous=deleted;deleted=deleted.filter(x=>x!==id(card));if(!save()){deleted=previous;return}render();status.textContent=name.textContent+' restored.'};row.append(name,restore);list.append(row)}section.hidden=count===0}
+ for(const card of cards){const button=document.createElement('button');button.className='asset-delete';button.textContent='Delete';button.setAttribute('aria-label','Delete '+card.querySelector('h2').textContent);button.onclick=()=>{const previous=deleted;deleted=[...new Set([...deleted,id(card)])];if(!save()){deleted=previous;return}render();status.textContent=card.querySelector('h2').textContent+' moved to Recently deleted.'};card.querySelector('.links').append(button)}render();
+})();
