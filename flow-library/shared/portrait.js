@@ -76,6 +76,7 @@
         recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};
         const finished=new Promise((resolve,reject)=>{recorder.onstop=resolve;recorder.onerror=()=>reject(Error('Recording failed.'))});
         document.addEventListener('visibilitychange',onHide);let left=duration;
+        if(location.pathname.includes('/layered-wave/'))window.flowExportClock={start:performance.now()};
         status.textContent=`Recording ${left}s — keep this tab visible`;recorder.start();
         timer=setInterval(()=>{left--;status.textContent=`Recording ${left}s — keep this tab visible`;if(left<=0){clearInterval(timer);if(recorder.state==='recording')recorder.stop()}},1000);
         await finished;clearInterval(timer);if(interrupted)throw Error('Recording stopped because this tab was hidden. Keep it visible and try again.');
@@ -85,7 +86,7 @@
         if(!response.ok)throw Error('MP4 conversion failed. Please retry.');
         const url=URL.createObjectURL(await response.blob()),link=document.createElement('a');link.href=url;link.download=document.title.replace(/[^a-z0-9]+/gi,'-').toLowerCase()+'-'+(fileRatio==='custom'?W+'x'+H:fileRatio)+'.mp4';link.click();setTimeout(()=>URL.revokeObjectURL(url),30000);status.textContent=`${ratio} MP4 exported · ${W} × ${H}`;
       }catch(error){status.textContent=error.message}
-      finally{clearInterval(timer);document.removeEventListener('visibilitychange',onHide);if(recorder?.state==='recording')recorder.stop();stream?.getTracks().forEach(track=>track.stop());locked.forEach(([el,disabled])=>el.disabled=disabled);if(resume)pause.click();busy=false;}
+      finally{delete window.flowExportClock;clearInterval(timer);document.removeEventListener('visibilitychange',onHide);if(recorder?.state==='recording')recorder.stop();stream?.getTracks().forEach(track=>track.stop());locked.forEach(([el,disabled])=>el.disabled=disabled);if(resume)pause.click();busy=false;}
     };
   });
 })();
