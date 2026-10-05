@@ -19,7 +19,7 @@
 <label>End <input id="bg2Picker" aria-label="Background end color" type="color" value="#123d88"><input id="bg2" aria-label="Background end hex" type="text" value="#123D88" maxlength="7"></label>
 <label><input id="grid" type="checkbox">Grid <input id="gridColor" aria-label="Grid color" type="color" value="#597faa"></label>
 </section><footer><button id="export">Export WebM · 1080p</button><span id="status" role="status"></span><a href="../flow-library/index.html">Flow library</a><p>8-second recording · current settings · transparent background supported</p></footer>
-<script src="../flow-library/shared/portrait.js?v=library-actions1"></script><script>
+<script src="../flow-library/shared/portrait.js?v=back-editor2"></script><script>
 const $=id=>document.getElementById(id),canvas=document.querySelector('canvas'),ctx=canvas.getContext('2d');
 const valid=v=>/^#[0-9a-f]{6}$/i.test(v),num=id=>Number($(id).value),color=(id,f)=>valid($(id).value)?$(id).value:f;
 let time=0,last=0,playing=!matchMedia('(prefers-reduced-motion:reduce)').matches,recording=false;

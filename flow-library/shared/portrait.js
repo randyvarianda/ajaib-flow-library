@@ -5,7 +5,7 @@
   const raf = window.requestAnimationFrame.bind(window);
   window.requestAnimationFrame = callback => raf(now => { callback(now); paint(); });
   window.addEventListener('DOMContentLoaded', () => {
-    const back=document.createElement('a');back.textContent='← Back to library';back.href=new URL('../index.html',document.querySelector('script[src*="shared/portrait.js"]').src).href;back.style.cssText='display:inline-block;margin:16px 4vw 0;color:#bddcff;font:14px system-ui;text-decoration:none;padding:9px 12px;border:1px solid #456082;border-radius:7px';document.body.prepend(back);
+    if(window.self===window.top){const back=document.createElement('a');back.textContent='← Back to library';back.href=new URL('../index.html',document.querySelector('script[src*="shared/portrait.js"]').src).href;back.style.cssText='display:inline-block;margin:16px 4vw 0;color:#bddcff;font:14px system-ui;text-decoration:none;padding:9px 12px;border:1px solid #456082;border-radius:7px';document.body.prepend(back);}
     const source = document.querySelector('canvas');
     if (!source) return;
     const style = document.createElement('style');
