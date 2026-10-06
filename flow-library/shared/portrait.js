@@ -44,7 +44,7 @@
       ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.drawImage(source,x,y,w,h);ctx.restore();
     };
     const originalExports=['mp4','webm','export'].map(id=>$(id)).filter(Boolean);
-    function setMode(){const standard=value('portrait-format')==='landscape';active=value('portrait-format')!=='landscape'||standard;const wide=value('portrait-format')==='wide';const custom=value('portrait-format')==='custom';W=standard?1920:custom?dimension('custom-width'):wide?2160:1080;H=standard?1080:custom?dimension('custom-height'):wide?1080:1920;const divisor=gcd(W,H);ratio=`${W/divisor}:${H/divisor}`;fileRatio=standard||custom?'custom':wide?'2x1':'9x16';panel.querySelectorAll('[data-custom]').forEach(el=>el.hidden=!custom);target.width=W;target.height=H;stage.style.setProperty('--flow-ratio',`${W}/${H}`);stage.style.setProperty('--flow-width',W>=H?'1200px':'380px');target.setAttribute('aria-label',ratio+' flow preview');$('portrait-export').textContent=`Export ${ratio} MP4 · ${W} × ${H}`;window.flowPortraitCompositing=active;stage.classList.toggle('portrait-mode',active);originalExports.forEach(el=>{el.style.display=active?'none':''});panel.querySelectorAll('[data-portrait]').forEach(el=>el.hidden=!active);$('portrait-status').textContent=active?'MP4 uses the background shown here. Keep this tab visible while recording.':'';}
+    function setMode(){const standard=value('portrait-format')==='landscape';active=value('portrait-format')!=='landscape'||standard;const wide=value('portrait-format')==='wide';const custom=value('portrait-format')==='custom';W=standard?1920:custom?dimension('custom-width'):wide?2160:1080;H=standard?1080:custom?dimension('custom-height'):wide?1080:1920;const divisor=gcd(W,H);ratio=`${W/divisor}:${H/divisor}`;fileRatio=standard||custom?'custom':wide?'2x1':'9x16';panel.querySelectorAll('[data-custom]').forEach(el=>el.hidden=!custom);target.width=W;target.height=H;stage.style.setProperty('--flow-ratio',`${W}/${H}`);stage.style.setProperty('--flow-width',W>=H?'1200px':'380px');target.setAttribute('aria-label',ratio+' flow preview');$('portrait-export').textContent=`${window.flowRenderAt?'Render':'Export'} ${ratio} MP4 · ${W} × ${H}`;window.flowPortraitCompositing=active;stage.classList.toggle('portrait-mode',active);originalExports.forEach(el=>{el.style.display=active?'none':''});panel.querySelectorAll('[data-portrait]').forEach(el=>el.hidden=!active);$('portrait-status').textContent=active?(window.flowRenderAt?'Exact-frame render with a seamless cycle. Background and framing are included.':'MP4 uses the background shown here. Keep this tab visible while recording.'):'';}
     $('portrait-format').onchange=setMode;for(const id of ['custom-width','custom-height'])$(id).onchange=()=>{$(id).value=dimension(id);setMode()};
     for(const id of ['portrait-x','portrait-y'])$(id).oninput=()=>$(id).nextElementSibling.textContent=value(id)+'%';
     if(['portrait','wide','custom'].includes(initialAspect))$('portrait-format').value=initialAspect;setMode();
@@ -58,6 +58,7 @@
       field.addEventListener('input',()=>{if(field.value!==''&&field.validity.valid){slider.value=field.value;slider.dispatchEvent(new Event('input',{bubbles:true}))}});
       field.addEventListener('change',()=>{if(field.value!==''&&Number.isFinite(field.valueAsNumber)){slider.value=Math.max(Number(slider.min),Math.min(Number(slider.max),field.valueAsNumber));slider.dispatchEvent(new Event('input',{bubbles:true}))}field.value=slider.value});
     }
+    if(window.flowRenderAt){$('loop-export').parentElement.hidden=true;$('portrait-export').textContent=$('portrait-export').textContent.replace('Export','Render');}
     $('portrait-export').onclick=async()=>{
       if(busy)return;
       const status=$('portrait-status');
@@ -72,6 +73,25 @@
         if(pause&&pause.textContent.trim()==='Play'){pause.click();resume=true}
         locked=[...document.querySelectorAll('input,select,button')].map(el=>[el,el.disabled]);locked.forEach(([el])=>el.disabled=true);
         const fps=Number(value('portrait-fps')),duration=Number(value('portrait-duration')),loop=$('loop-export').checked;
+        if(window.flowRenderAt){
+          window.flowRendering=true;
+          const oldWidth=source.width,oldHeight=source.height;
+          try{
+            const renderScale=Math.max(W/1600,H/900);source.width=Math.round(1600*renderScale);source.height=Math.round(900*renderScale);
+            const frames=[],count=duration*fps;
+            for(let i=0;i<count;i++){
+              window.flowRenderAt(i/fps);paint();
+              frames.push(await new Promise((resolve,reject)=>target.toBlob(b=>b?resolve(b):reject(Error('Frame rendering failed.')),'image/png')));
+              status.textContent=`Rendering frame ${i+1} / ${count}`;
+            }
+            status.textContent='Encoding rendered MP4…';
+            const response=await fetch(new URL('export-rendered-mp4',exportBase),{method:'POST',headers:{'X-Frame-Rate':String(fps),'X-Frame-Count':String(count)},body:new Blob(frames,{type:'application/octet-stream'})});
+            if(!response.ok)throw Error('Rendered export failed. Restart the local server and retry.');
+            const url=URL.createObjectURL(await response.blob()),link=document.createElement('a');link.href=url;link.download='layered-wave-loop-'+W+'x'+H+'.mp4';link.click();setTimeout(()=>URL.revokeObjectURL(url),30000);
+            status.textContent=`Rendered seamless MP4 · ${count} frames · ${duration}s`;
+          }finally{source.width=oldWidth;source.height=oldHeight;window.flowRendering=false;}
+          return;
+        }
         stream=target.captureStream(fps);recorder=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:24000000});const chunks=[];
         recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};
         const finished=new Promise((resolve,reject)=>{recorder.onstop=resolve;recorder.onerror=()=>reject(Error('Recording failed.'))});

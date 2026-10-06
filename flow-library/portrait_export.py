@@ -17,6 +17,8 @@ def portrait_get(handler):
 
 
 def portrait_post(handler):
+    if handler.path == '/export-rendered-mp4':
+        return rendered_post(handler)
     if handler.path != '/export-portrait-mp4':
         return False
     try:
@@ -70,4 +72,39 @@ def portrait_post(handler):
         handler.wfile.write(data)
     except (ValueError, subprocess.TimeoutExpired, OSError):
         handler.send_error(400, 'Could not convert the video recording')
+    return True
+
+
+def rendered_post(handler):
+    try:
+        length = int(handler.headers.get('Content-Length', 0))
+        fps = int(handler.headers.get('X-Frame-Rate', 30))
+        count = int(handler.headers.get('X-Frame-Count', 0))
+        if not 0 < length <= 1024*1024*1024 or fps not in (30, 60) or not 1 <= count <= 720:
+            raise ValueError('Invalid rendered frames')
+        with tempfile.TemporaryDirectory(prefix='flow-render-') as directory:
+            source = Path(directory) / 'frames.png'
+            with source.open('wb') as output:
+                remaining = length
+                while remaining:
+                    chunk = handler.rfile.read(min(1024*1024, remaining))
+                    if not chunk:
+                        raise ValueError('Incomplete frame upload')
+                    output.write(chunk)
+                    remaining -= len(chunk)
+            movie = Path(directory) / 'loop.mp4'
+            result = subprocess.run([imageio_ffmpeg.get_ffmpeg_exe(), '-v', 'error', '-y',
+                '-f', 'image2pipe', '-framerate', str(fps), '-vcodec', 'png', '-i', str(source),
+                '-frames:v', str(count), '-an', '-c:v', 'libx264', '-crf', '16',
+                '-pix_fmt', 'yuv420p', '-movflags', '+faststart', str(movie)], capture_output=True, timeout=300)
+            if result.returncode:
+                raise ValueError('Frame encoding failed')
+            data = movie.read_bytes()
+        handler.send_response(200)
+        handler.send_header('Content-Type', 'video/mp4')
+        handler.send_header('Content-Length', str(len(data)))
+        handler.end_headers()
+        handler.wfile.write(data)
+    except (ValueError, OSError, subprocess.TimeoutExpired):
+        handler.send_error(400, 'Could not encode rendered frames')
     return True
